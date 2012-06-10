@@ -17,58 +17,20 @@ function add_csrf(jqXHR, settings) {
     jqXHR.setRequestHeader("X-CSRFToken", getCookie('csrftoken'));
 }
 
-function make_file_fields_dynamic($, selector, options_url, determine_name_url) {
-    function get_form(item) {
-        return $(item).parents('form:first')
-    }
-    
-    function init_form(form) {
-        if (form.data('uploadify_init')) {
-            return
-        }
-        form.data('pending_uploads', {});
-        form.data('submit', false);
-        form.submit(function() {
-            if ($.isEmptyObject(form.data('pending_uploads'))) {
-                form.find(':input').filter(selector).replaceWith(function() {
-                    var path = $(this).data('path')
-                    if (path) {
-                        var fname = $(this).attr('id').substr(3) //uploadify is nice enough to nuke this variable /s
-                        return '<input type="hidden" name="'+fname+'" id="'+$(this).attr('id')+'" value="'+path+'"/>';
-                    } else {
-                        return $(this);
-                    }
-                });
-                return true;
-            }
-            form.data('submit', true);
-            return false;
-        });
-        form.data('uploadify_init', true);
-    }
-    
+
+function make_form_uploader($, selector, options_url, determine_name_url) {
     
     function add(event, data) {
-        //console.log(event, data)
         var file = data.files[0];
         var id = $(this).attr('id');
-        var options = event.data.fileupload.options;
-        form = get_form(this)
-        if (!form.data('uploadify_init')) { //hack around
-            init_form(form)
-        }
+
         if (!file) return; //some browsers improperly trigger the event for non file fields
-        form.data('pending_uploads')[id] = true;
         
         //determine the target path and update post data if our backend requires
         var upload_to = $(event.currentTarget).attr('data-upload-to') || '';
         if (upload_to.substr(-1) != '/') {
             upload_to += '/';
         }
-        
-        $('#'+id).siblings('.uploadstatus').remove()
-        $('#'+id).after('<span class="uploadstatus">Uploading: '+file.name+'<span class="uploadprogress">&nbsp;</span></span>')
-        $('#'+id).hide()
         
         jQuery.ajax({
             type    : 'POST',
@@ -80,71 +42,29 @@ function make_file_fields_dynamic($, selector, options_url, determine_name_url) 
                        upload_to: upload_to},
             success : function(post_data) {
                 data.formData = post_data;
-                data.fileInput.attr('name', options.fileObjName);
                 file.path = post_data['targetpath'];
+                data._direct_upload_inited = true;
                 data.submit();
             }
         });
     }
     
-    function progress(event, data) {
-        var id = $(this).attr('id')
-        var progress = parseInt(data.loaded / data.total * 100, 10);
-        $('#'+id).siblings('.uploadstatus').find('.uploadprogress').text(progress+'%')
-    }
-    
-    function done(event, data) {
-        var id = $(this).attr('id')
-        var file = data.files[0];
-        
-        form = get_form(this)
-        delete form.data('pending_uploads')[id];
-        $('#'+id).data('path', file.path);
-        $('#'+id).siblings('.uploadstatus').remove()
-        $('#'+id).after('<span class="uploadstatus">File uploaded: '+file.name+' <a href="#" data-upload-id="'+id+'">Remove</a></span>')
-        $('#'+id).siblings('.uploadstatus').find('a').click(remove_click)
-        if ($.isEmptyObject(form.data('pending_uploads')) && form.data('submit')) {
-            form.submit();
+    function submit(e, data) {
+        console.log('submit data', data);
+        if(!data._direct_upload_inited){
+          return false;
         }
     }
-    
-    function remove_click() {
-        var id = $(this).attr('data-upload-id')
-        $('#'+id).data('path', null);
-        $('#'+id).siblings('.uploadstatus').remove()
-        $('#'+id).show()
-    }
-    
-    function fail(e, data) {
-        var id = $(this).attr('id')
-        var file = data.files[0];
-        delete form.data('pending_uploads')[id];
-        console.log('fail');
-        console.log([e, data]);
-    }
-    
-    $(document).data('uploadify-directories', {})
-    $(selector).each(function() { //may not be necessary
-        $(document).data('uploadify-directories')[$(this).attr('id')] = $(this).attr('data-upload-to');
-    });
-    
+
     $.getJSON(options_url, function(data) {
         var options = $.extend({
-            //'onUploadSuccess': on_upload_success,
-            'add': add,
-            'progress': progress,
-            'fail': fail,
-            'done': done,
-            //'onUploadError': on_upload_error,
-            //'onUploadCancel': on_upload_cancel,
-            'autoUpload': true,
-            'multi': false,
-            //'removeCompleted': false,
-            //'uploadLimit': 1,
             'async': true,
-            'type': 'POST'
+            'type': 'POST',
+            'autoUpload' : true,
         }, data);
         $(selector).fileupload(options);
+        $(selector).bind('fileuploadadd', add);
+        $(selector).bind('fileuploadsubmit', submit);
     });
 }
 
