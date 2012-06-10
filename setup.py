@@ -15,6 +15,9 @@ setup(name='django-directupload',
       url='https://github.com/cuker/django-directupload',
       packages=find_packages(exclude=['test_environment', 'setuptests']),
       test_suite='setuptests.setuptest.SetupTestSuite',
+      install_requires=(
+          'django-classy-tags',
+      ),
       tests_require=(
         'pep8',
         'coverage',

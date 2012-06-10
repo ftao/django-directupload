@@ -5,6 +5,7 @@ from django.utils import simplejson as json
 from django.utils.encoding import force_unicode, smart_str
 
 from directupload.backends import get_directupload_backend
+from directupload.signals import direct_upload_success
 
 from urlparse import parse_qsl
 import os
@@ -25,7 +26,19 @@ def upload_file(request):
     assert data['request_time'] #TODO respect some expiration
     path = request.POST['targetpath']
     file_path = default_storage.save(path, request.FILES['file']) #TODO how to tell the storage engine not to rename?
-    return HttpResponse(file_path)
+
+    info = {
+      "name" : os.path.basename(file_path),
+      "size" : default_storage.size(file_path),
+      "url" :  default_storage.url(file_path),
+      "thumbnail_url" : "", #default_storage.url(file_path),
+      "delete_url" : "",# "\/\/example.org\/upload-handler?file=picture1.jpg",
+      "delete_type" : "DELETE"
+    }
+
+    import directupload.backends.djangoview
+    direct_upload_success.send(sender=directupload.backends.djangoview, name=file_path, request=request)
+    return HttpResponse(json.dumps([info]), mimetype="application/json")
 
 def determine_name(request):
     if not request.POST:
