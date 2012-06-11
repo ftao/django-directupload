@@ -44,13 +44,12 @@ function make_form_uploader($, selector, options_url, determine_name_url) {
                 data.formData = post_data;
                 file.path = post_data['targetpath'];
                 data._direct_upload_inited = true;
-                data.submit();
+//                data.submit();
             }
         });
     }
     
     function submit(e, data) {
-        console.log('submit data', data);
         if(!data._direct_upload_inited){
           return false;
         }
