@@ -44,7 +44,7 @@ function make_form_uploader($, selector, options_url, determine_name_url) {
                 data.formData = post_data;
                 file.path = post_data['targetpath'];
                 data._direct_upload_inited = true;
-//                data.submit();
+                data.submit();
             }
         });
     }
@@ -53,13 +53,21 @@ function make_form_uploader($, selector, options_url, determine_name_url) {
         if(!data._direct_upload_inited){
           return false;
         }
+        if(!data._is_submited){
+            data._is_submited = true;
+            return true;
+        }
+        else{
+            return false;
+        }
+
     }
 
     $.getJSON(options_url, function(data) {
         var options = $.extend({
             'async': true,
             'type': 'POST',
-            'autoUpload' : true,
+            //'autoUpload' : true,
         }, data);
         $(selector).fileupload(options);
         $(selector).bind('fileuploadadd', add);
